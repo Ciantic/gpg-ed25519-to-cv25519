@@ -1,5 +1,7 @@
 # SSH GPG tool
 
+This at the moment is very half baked.
+
 ```
 Usage: sshgpg [OPTIONS] <COMMAND>
 
@@ -43,3 +45,13 @@ it's stored in YubiKey.
 ## License
 
 I consider my code MIT licensed, but as I consulted sequoia-pgp code, parts maybe considered also LGPL2.
+
+## TODO
+
+-   More granular commands:
+    -   Extract ED25519 private key and public key
+        -   Extract in OpenSSH format as well as raw
+    -   Insert ED25519 private key to GPG key
+    -   Insert ED25519 private key as CV25519 encryption key to GPG key
+    -   Insert SSH Key to GPG key
+-   Error handling to Rust enums
