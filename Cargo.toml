@@ -1,5 +1,5 @@
 [package]
-name = "gpg-ed25519-to-cv25519"
+name = "sshgpg"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -10,3 +10,6 @@ publish = false
 dryoc = "0.4"
 sequoia-openpgp = "1.10"
 nettle = "7.2"
+ssh-keys = "0.1"
+clap = { version ="4.0", features = ["derive"] }
+derive_more = "0.99"

@@ -10,7 +10,7 @@ gpg --quiet --batch --passphrase '' --default-new-key-algo "ed25519/cert,auth,si
 gpg --quiet --export-secret-keys --armor -o test.key
 
 # Generate a new key with encryption
-cargo run test.key test2.key
+cargo run ed25519-to-cv25519 test.key test2.key
 
 # Test the new key
 rm -rf /tmp/tmp.gpgtests/*
