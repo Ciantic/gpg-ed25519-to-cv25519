@@ -3,17 +3,29 @@
 This at the moment is very half baked.
 
 ```
+Usage: eddie [OPTIONS> <COMMAND>
+
+Commands
+  ssh
+  gpg
+
+
+```
+
 Usage: sshgpg [OPTIONS] <COMMAND>
 
 Commands:
-  ed25519-to-cv25519  Converts existing ed25519 subkey to cv25519 encryption subkey
-  ssh-to-gpg          Convert SSH private key to GPG private key
+ed25519-to-cv25519 Converts existing ed25519 subkey to cv25519 encryption subkey
+ssh-to-gpg Convert SSH private key to GPG private key
+
 ```
 
 ## Convert SSH key to GPG key
 
 ```
+
 Usage sshgpg ssh-to-gpg [INPUT_SSH_KEY_FILE] [OUTPUT_GPG_FILE]
+
 ```
 
 ## Convert GPG ed25519 key to cv25519 encryption key
@@ -21,12 +33,14 @@ Usage sshgpg ssh-to-gpg [INPUT_SSH_KEY_FILE] [OUTPUT_GPG_FILE]
 This program appends cv25519 encryption key to GPG private key, it derives the private key from existing ed25519 key.
 
 ```
+
 Usage: sshgpg ed25519-to-cv25519 [INPUT_FILE] [OUTPUT_FILE]
 
-  INPUT_FILE: Armored PGP private key with ed25519 key, and no encryption key
-  OUTPUT_FILE: Armored PGP private key with cv25519 encryption key
+INPUT_FILE: Armored PGP private key with ed25519 key, and no encryption key
+OUTPUT_FILE: Armored PGP private key with cv25519 encryption key
 
-  Note: INPUT_FILE must not have passphrase.
+Note: INPUT_FILE must not have passphrase.
+
 ```
 
 ## Background
@@ -55,3 +69,4 @@ I consider my code MIT licensed, but as I consulted sequoia-pgp code, parts mayb
     -   Insert ED25519 private key as CV25519 encryption key to GPG key
     -   Insert SSH Key to GPG key
 -   Error handling to Rust enums
+```

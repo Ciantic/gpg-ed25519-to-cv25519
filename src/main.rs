@@ -2,11 +2,19 @@ extern crate sequoia_openpgp as openpgp;
 
 mod commands;
 mod utils;
-use clap::{arg, command, Parser};
+use clap::{arg, command, Parser, Subcommand};
+use commands::{
+    gpg::{self, GpgCmds, GpgOpts},
+    ssh::SshOpts,
+};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(version = "0.1", author = "Jari O. O. Pennanen <ciantic@oksidi.com>")]
+#[command(
+    version = "0.1",
+    arg_required_else_help = true,
+    author = "Jari O. O. Pennanen <ciantic@oksidi.com>"
+)]
 struct Opts {
     #[arg(short, long)]
     verbose: Option<i32>,
@@ -15,13 +23,19 @@ struct Opts {
     subcmd: SubCommand,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Subcommand, Debug)]
 enum SubCommand {
     /// Converts existing ed25519 subkey to cv25519 encryption subkey
     Ed25519ToCv25519(Ed25519ToCv25519),
 
     /// Convert SSH private key to GPG private key
     SshToGpg(SshToGpg),
+
+    /// Inspect SSH private keys
+    Ssh(SshOpts),
+
+    /// Create, modify or inspect GPG private keys
+    Gpg(GpgCmds),
 }
 
 #[derive(Parser, Debug)]
@@ -43,7 +57,7 @@ pub struct SshToGpg {
     pub gpg_file: PathBuf,
 }
 
-fn main() -> Result<(), ()> {
+fn main() -> Result<(), String> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
@@ -58,5 +72,7 @@ fn main() -> Result<(), ()> {
             crate::commands::ssh_to_gpg::ssh_to_gpg(opts.ssh_file, opts.gpg_file);
             Ok(())
         }
+        SubCommand::Ssh(opts) => Ok(()),
+        SubCommand::Gpg(opts) => gpg::gpg(opts),
     }
 }
