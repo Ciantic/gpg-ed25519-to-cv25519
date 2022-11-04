@@ -1,19 +1,23 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Duration, SystemTime},
+};
 
-use clap::{arg, command, Args, Parser, Subcommand};
+use clap::{arg, command, Args, Parser};
 use sequoia_openpgp::{
     armor::{Kind, Reader, Writer},
-    cert::{CertBuilder, CertParser},
+    cert::CertParser,
+    crypto::Signer,
     packet::{
         key::{SecretParts, SubordinateRole},
         prelude::Key4,
         signature::SignatureBuilder,
-        Key,
+        Key, UserID,
     },
     parse::Parse,
     policy::StandardPolicy,
     serialize::{MarshalInto, Serialize},
-    types::{Features, KeyFlags, SignatureType},
+    types::{HashAlgorithm, KeyFlags, SignatureType, SymmetricAlgorithm},
     Cert, Packet,
 };
 
@@ -49,8 +53,8 @@ pub struct ModifyOpts {
     #[arg(short, long, help = "Capabilities of a new key (CSEA)")]
     pub capabilities: Option<String>,
 
-    #[arg(short = 't', long, help = "Creation timestamp")]
-    pub creation_time: Option<u64>,
+    #[arg(short = 't', long, help = "Creation timestamp", value_parser = parse_time)]
+    pub creation_time: Option<SystemTime>,
 
     #[arg(
         short,
@@ -65,8 +69,14 @@ pub struct ModifyOpts {
 
 #[derive(Args, Debug)]
 pub struct CreateOpts {
-    #[arg(value_name = "USER_ID", help = "User ID of the new GPG key")]
-    pub user_id: String,
+    #[arg(
+        value_name = "OUTPUT_FILE",
+        help = "Output to a file, if not given outputs to stdout"
+    )]
+    pub output_file: String,
+
+    #[arg(short, long, help = "User name and email of the new GPG key")]
+    pub user_name: Option<String>,
 
     #[arg(short, long, help = "Add ed25519 private key (32 bytes in hex format)")]
     pub ed25519_private_key: Option<String>,
@@ -85,11 +95,8 @@ pub struct CreateOpts {
     )]
     pub x25519_private_key: Option<String>,
 
-    #[arg(short = 't', long, help = "Creation timestamp")]
-    pub creation_time: Option<u64>,
-
-    #[arg(short, long, help = "Output to a file, if not given outputs to stdout")]
-    pub output_file: Option<String>,
+    #[arg(short = 't', long, help = "Creation timestamp", value_parser = parse_time)]
+    pub creation_time: Option<SystemTime>,
 }
 
 #[derive(Args, Debug)]
@@ -187,31 +194,33 @@ fn inspect(opts: InspectOpts) -> Result<(), String> {
 }
 
 fn create(opts: CreateOpts) -> Result<(), String> {
-    let flags = caps_to_flags(&opts.capabilities.unwrap_or_default())?;
+    let mut flags = caps_to_flags(&opts.capabilities.unwrap_or_default())?;
     if !flags.for_certification() {
         return Err("Certification is required to create a key".to_string());
     }
 
-    /*
+    // Do storage encryption separately
+    if flags.for_storage_encryption() {
+        flags = flags.clear_storage_encryption();
+    }
+
+    let creation_time = opts.creation_time.unwrap_or_else(SystemTime::now);
     let ed25519_key_str = opts.ed25519_private_key.unwrap();
     let ed25519_key = hex::decode(ed25519_key_str).map_err(|_| "Unable to decode private key")?;
 
-    let primary_key: Key<SecretParts, _> =
-        Key4::import_secret_ed25519(&ed25519_key, std::time::SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .into();
+    let primary_key: Key<SecretParts, _> = Key4::import_secret_ed25519(&ed25519_key, creation_time)
+        .unwrap()
+        .into();
+    let signer = &mut primary_key.clone().into_keypair().unwrap();
+
+    /*
     let primary_key_sig = SignatureBuilder::new(openpgp::types::SignatureType::DirectKey)
         .set_hash_algo(openpgp::types::HashAlgorithm::SHA512)
         .set_signature_creation_time(std::time::SystemTime::UNIX_EPOCH)
         .unwrap()
         .set_features(Features::sequoia())
         .unwrap()
-        .set_key_flags(
-            KeyFlags::empty()
-                .set_certification()
-                .set_authentication()
-                .set_signing(),
-        )
+        .set_key_flags(flags)
         .unwrap()
         .set_key_validity_period(None)
         .unwrap()
@@ -227,19 +236,14 @@ fn create(opts: CreateOpts) -> Result<(), String> {
             primary_key.parts_as_public(),
         )
         .unwrap();
-
-    let user_id = UserID::from("John O Cron");
-    let user_id_sig = signature::SignatureBuilder::new(SignatureType::PositiveCertification)
+    */
+    let user_id = UserID::from(opts.user_name.unwrap_or_default());
+    let user_id_sig = SignatureBuilder::new(SignatureType::PositiveCertification)
         .set_primary_userid(true)
         .unwrap()
-        .set_features(Features::sequoia())
-        .unwrap()
-        .set_key_flags(
-            KeyFlags::empty()
-                .set_certification()
-                .set_authentication()
-                .set_signing(),
-        )
+        // .set_features(Features::sequoia())
+        // .unwrap()
+        .set_key_flags(flags)
         .unwrap()
         .set_key_validity_period(None)
         .unwrap()
@@ -251,34 +255,41 @@ fn create(opts: CreateOpts) -> Result<(), String> {
         ])
         .unwrap()
         .set_hash_algo(openpgp::types::HashAlgorithm::SHA512)
-        .set_signature_creation_time(std::time::SystemTime::UNIX_EPOCH)
+        .set_signature_creation_time(creation_time)
         .unwrap()
-        .sign_userid_binding(
-            &mut primary_key.clone().into_keypair().unwrap(),
-            primary_key.parts_as_public(),
-            &user_id,
-        )
+        .sign_userid_binding(signer, primary_key.parts_as_public(), &user_id)
         .unwrap();
 
     // Add passphrase:
     // subkey.secret_mut().encrypt_in_place("foo");
 
-    let foo = Cert::try_from(vec![
+    let cert = Cert::try_from(vec![
         Packet::SecretKey(primary_key), //
-        primary_key_sig.into(),
         Packet::from(user_id),
+        // primary_key_sig.into(),
+        // Packet::from(user_id),
         user_id_sig.into(),
-    ]);
-     */
+    ])
+    .unwrap();
+    let armored = export_secret_keys(&cert);
+
+    if opts.output_file == "-" {
+        println!("{}", armored);
+    } else {
+        std::fs::write(opts.output_file, armored).map_err(|_| "Unable write to file")?;
+    }
+
     Ok(())
 }
 
 fn modify(opts: ModifyOpts) -> Result<(), String> {
-    // Read armored file
     let mut cert = read_cert_file(&opts.gpg_file)?;
-
-    // Generate flags
+    let creation_time = opts.creation_time.unwrap_or_else(SystemTime::now);
     let flags = caps_to_flags(&opts.capabilities.unwrap_or_default())?;
+
+    if flags.is_empty() {
+        return Err("Capabilities are required".to_string());
+    }
 
     if check_if_cert_contains_capability(&cert, &flags) {
         return Err("Certificate already contains given capability".to_string());
@@ -286,16 +297,20 @@ fn modify(opts: ModifyOpts) -> Result<(), String> {
 
     // Insert given ED25519 key
     if let Some(ed25519_key) = opts.ed25519_private_key {
+        println!("Add ed25519 key {:?}", flags);
         let decoded = hex::decode(ed25519_key).map_err(|_| "Unable to decode private key")?;
         if decoded.len() != 32 {
             return Err("Invalid ed25519 private key length".to_string());
         }
-        let subkey: Key<SecretParts, SubordinateRole> = Key4::import_secret_ed25519(&decoded, None)
-            .map_err(|_| "Unable to import ed25519 key")?
-            .into();
+        let subkey: Key<SecretParts, SubordinateRole> =
+            Key4::import_secret_ed25519(&decoded, creation_time)
+                .map_err(|_| "Unable to import ed25519 key")?
+                .into();
         cert = add_sub_key(
             &cert,
             SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(creation_time)
+                .unwrap()
                 .set_key_flags(flags.clone())
                 .map_err(|_| "Unable to build signature")?,
             subkey,
@@ -304,17 +319,20 @@ fn modify(opts: ModifyOpts) -> Result<(), String> {
 
     // Insert given X25519 key
     if let Some(x25519_key) = opts.x25519_private_key {
+        println!("Add x25519 key");
         let decoded = hex::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
         if decoded.len() != 32 {
             return Err("Invalid x25519 private key length".to_string());
         }
         let subkey: Key<SecretParts, SubordinateRole> =
-            Key4::import_secret_cv25519(&decoded, None, None, None)
+            Key4::import_secret_cv25519(&decoded, None, None, creation_time)
                 .unwrap()
                 .into();
         cert = add_sub_key(
             &cert,
             SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(creation_time)
+                .unwrap()
                 .set_key_flags(flags.clone())
                 .map_err(|_| "Unable to build signature")?,
             subkey,
@@ -326,9 +344,11 @@ fn modify(opts: ModifyOpts) -> Result<(), String> {
         if (output_file == "-") || (output_file == "/dev/stdout") {
             println!("{}", armored);
         } else {
+            println!("Wrote to file {}", &output_file);
             std::fs::write(output_file, armored).map_err(|_| "Unable to write output file")?;
         }
     } else {
+        println!("Wrote to file {}", &opts.gpg_file.to_string_lossy());
         std::fs::write(&opts.gpg_file, armored).map_err(|_| "Unable to write output file")?;
     }
 
@@ -445,4 +465,10 @@ fn export_secret_keys(cert: &Cert) -> String {
     cert.as_tsk().serialize(&mut writer).unwrap();
     let buffer = writer.finalize().unwrap();
     String::from_utf8_lossy(&buffer).to_string()
+}
+
+// parse string to systemtime
+fn parse_time(time: &str) -> Result<SystemTime, String> {
+    let time = time.parse::<u64>().map_err(|_| "Unable to parse time")?;
+    Ok(SystemTime::UNIX_EPOCH + Duration::from_secs(time))
 }
