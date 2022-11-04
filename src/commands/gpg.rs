@@ -17,7 +17,7 @@ use sequoia_openpgp::{
     parse::Parse,
     policy::StandardPolicy,
     serialize::{MarshalInto, Serialize},
-    types::{HashAlgorithm, KeyFlags, SignatureType, SymmetricAlgorithm},
+    types::{Features, HashAlgorithm, KeyFlags, SignatureType, SymmetricAlgorithm},
     Cert, Packet,
 };
 
@@ -241,8 +241,8 @@ fn create(opts: CreateOpts) -> Result<(), String> {
     let user_id_sig = SignatureBuilder::new(SignatureType::PositiveCertification)
         .set_primary_userid(true)
         .unwrap()
-        // .set_features(Features::sequoia())
-        // .unwrap()
+        .set_features(Features::sequoia())
+        .unwrap()
         .set_key_flags(flags)
         .unwrap()
         .set_key_validity_period(None)
