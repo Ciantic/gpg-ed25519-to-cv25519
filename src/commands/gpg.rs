@@ -257,6 +257,7 @@ fn create(opts: CreateOpts) -> Result<(), String> {
         .set_hash_algo(openpgp::types::HashAlgorithm::SHA512)
         .set_signature_creation_time(creation_time)
         .unwrap()
+        // .pre_sign(signer) // <-- PATCHED Removed salt https://gitlab.com/sequoia-pgp/sequoia/-/issues/943
         .sign_userid_binding(signer, primary_key.parts_as_public(), &user_id)
         .unwrap();
 
