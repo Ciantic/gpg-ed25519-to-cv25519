@@ -4,6 +4,7 @@ mod commands;
 mod utils;
 use clap::{arg, command, Parser, Subcommand};
 use commands::{
+    ed25519::Ed25519Opts,
     gpg::{self, GpgCmds, GpgOpts},
     ssh::SshOpts,
 };
@@ -27,6 +28,9 @@ struct Opts {
 enum SubCommand {
     /// Converts existing ed25519 subkey to cv25519 encryption subkey
     Ed25519ToCv25519(Ed25519ToCv25519),
+
+    /// Ed25519 key manipulation
+    Ed25519(Ed25519Opts),
 
     /// Convert SSH private key to GPG private key
     SshToGpg(SshToGpg),
@@ -74,5 +78,9 @@ fn main() -> Result<(), String> {
         }
         SubCommand::Ssh(opts) => Ok(()),
         SubCommand::Gpg(opts) => gpg::gpg(opts),
+        SubCommand::Ed25519(opts) => {
+            crate::commands::ed25519::ed25519(opts);
+            Ok(())
+        }
     }
 }

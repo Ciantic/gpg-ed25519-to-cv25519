@@ -7,7 +7,6 @@ use clap::{arg, command, Args, Parser};
 use sequoia_openpgp::{
     armor::{Kind, Reader, Writer},
     cert::CertParser,
-    crypto::Signer,
     packet::{
         key::{SecretParts, SubordinateRole},
         prelude::Key4,
@@ -205,45 +204,18 @@ fn create(opts: CreateOpts) -> Result<(), String> {
     }
 
     let creation_time = opts.creation_time.unwrap_or_else(SystemTime::now);
-    let ed25519_key_str = opts.ed25519_private_key.unwrap();
-    let ed25519_key = hex::decode(ed25519_key_str).map_err(|_| "Unable to decode private key")?;
+    let ed25519_key = hex::decode(opts.ed25519_private_key.unwrap())
+        .map_err(|_| "Unable to decode private key")?;
 
     let primary_key: Key<SecretParts, _> = Key4::import_secret_ed25519(&ed25519_key, creation_time)
         .unwrap()
         .into();
     let signer = &mut primary_key.clone().into_keypair().unwrap();
 
-    /*
-    let primary_key_sig = SignatureBuilder::new(openpgp::types::SignatureType::DirectKey)
-        .set_hash_algo(openpgp::types::HashAlgorithm::SHA512)
-        .set_signature_creation_time(std::time::SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .set_features(Features::sequoia())
-        .unwrap()
-        .set_key_flags(flags)
-        .unwrap()
-        .set_key_validity_period(None)
-        .unwrap()
-        .set_preferred_hash_algorithms(vec![HashAlgorithm::SHA512, HashAlgorithm::SHA256])
-        .unwrap()
-        .set_preferred_symmetric_algorithms(vec![
-            SymmetricAlgorithm::AES256,
-            SymmetricAlgorithm::AES128,
-        ])
-        .unwrap()
-        .sign_direct_key(
-            &mut primary_key.clone().into_keypair().unwrap(),
-            primary_key.parts_as_public(),
-        )
-        .unwrap();
-    */
     let user_id = UserID::from(opts.user_name.unwrap_or_default());
     let user_id_sig = SignatureBuilder::new(SignatureType::PositiveCertification)
-        .set_primary_userid(true)
-        .unwrap()
+        // Basic settings
         .set_features(Features::sequoia())
-        .unwrap()
-        .set_key_flags(flags)
         .unwrap()
         .set_key_validity_period(None)
         .unwrap()
@@ -257,6 +229,12 @@ fn create(opts: CreateOpts) -> Result<(), String> {
         .set_hash_algo(openpgp::types::HashAlgorithm::SHA512)
         .set_signature_creation_time(creation_time)
         .unwrap()
+        .clone()
+        .set_key_flags(flags.clone())
+        .unwrap()
+        // User id settings
+        .set_primary_userid(true)
+        .unwrap()
         // .pre_sign(signer) // <-- PATCHED Removed salt https://gitlab.com/sequoia-pgp/sequoia/-/issues/943
         .sign_userid_binding(signer, primary_key.parts_as_public(), &user_id)
         .unwrap();
@@ -264,16 +242,34 @@ fn create(opts: CreateOpts) -> Result<(), String> {
     // Add passphrase:
     // subkey.secret_mut().encrypt_in_place("foo");
 
-    let cert = Cert::try_from(vec![
-        Packet::SecretKey(primary_key), //
+    let mut cert = Cert::try_from(vec![
+        Packet::SecretKey(primary_key.clone()), //
         Packet::from(user_id),
         // primary_key_sig.into(),
         // Packet::from(user_id),
         user_id_sig.into(),
     ])
     .unwrap();
-    let armored = export_secret_keys(&cert);
 
+    if let Some(x25519_key) = opts.x25519_private_key {
+        let x25519_key = hex::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
+        let subkey: Key<SecretParts, _> =
+            Key4::import_secret_cv25519(&x25519_key, None, None, creation_time)
+                .unwrap()
+                .into();
+        let subkey_sig = SignatureBuilder::new(SignatureType::SubkeyBinding)
+            .clone()
+            .set_key_flags(KeyFlags::empty().set_storage_encryption())
+            .unwrap()
+            // .pre_sign(signer) // <-- PATCHED Removed salt https://gitlab.com/sequoia-pgp/sequoia/-/issues/943
+            .sign_subkey_binding(signer, primary_key.parts_as_public(), &subkey)
+            .unwrap();
+        cert = cert
+            .insert_packets(vec![Packet::SecretSubkey(subkey), subkey_sig.into()])
+            .unwrap();
+    }
+
+    let armored = export_secret_keys(&cert);
     if opts.output_file == "-" {
         println!("{}", armored);
     } else {
@@ -284,60 +280,80 @@ fn create(opts: CreateOpts) -> Result<(), String> {
 }
 
 fn modify(opts: ModifyOpts) -> Result<(), String> {
-    let mut cert = read_cert_file(&opts.gpg_file)?;
     let creation_time = opts.creation_time.unwrap_or_else(SystemTime::now);
-    let flags = caps_to_flags(&opts.capabilities.unwrap_or_default())?;
-
-    if flags.is_empty() {
-        return Err("Capabilities are required".to_string());
-    }
-
-    if check_if_cert_contains_capability(&cert, &flags) {
-        return Err("Certificate already contains given capability".to_string());
-    }
+    let mut cert = read_cert_file(&opts.gpg_file)?;
+    let primary_key = cert.primary_key().key().clone();
+    let mut signer = primary_key
+        .clone()
+        .parts_into_secret()
+        .map_err(|_| "Can't get secrets of the key")?
+        .clone()
+        .into_keypair()
+        .unwrap();
 
     // Insert given ED25519 key
     if let Some(ed25519_key) = opts.ed25519_private_key {
+        let flags = caps_to_flags(&opts.capabilities.unwrap_or_default())?;
+        if flags.is_empty() {
+            return Err("Capabilities are required for ed25519 keys".to_string());
+        }
+
+        if check_if_cert_contains_capability(&cert, &flags) {
+            return Err("Certificate already contains given capability".to_string());
+        }
+
         println!("Add ed25519 key {:?}", flags);
         let decoded = hex::decode(ed25519_key).map_err(|_| "Unable to decode private key")?;
         if decoded.len() != 32 {
             return Err("Invalid ed25519 private key length".to_string());
         }
+
         let subkey: Key<SecretParts, SubordinateRole> =
             Key4::import_secret_ed25519(&decoded, creation_time)
                 .map_err(|_| "Unable to import ed25519 key")?
                 .into();
-        cert = add_sub_key(
-            &cert,
-            SignatureBuilder::new(SignatureType::SubkeyBinding)
-                .set_signature_creation_time(creation_time)
-                .unwrap()
-                .set_key_flags(flags.clone())
-                .map_err(|_| "Unable to build signature")?,
-            subkey,
-        )?;
+        let mut subkey_sig = SignatureBuilder::new(SignatureType::SubkeyBinding)
+            .clone()
+            .set_key_flags(flags.clone())
+            .unwrap();
+
+        // Back signature for cross signing, required for signing capability
+        // keys
+        if flags.for_signing() {
+            let mut subkey_signer = subkey.clone().into_keypair().unwrap();
+            subkey_sig = subkey_sig
+                .set_embedded_signature(
+                    SignatureBuilder::new(SignatureType::PrimaryKeyBinding)
+                        .sign_primary_key_binding(&mut subkey_signer, &primary_key, &subkey)
+                        .unwrap(),
+                )
+                .unwrap();
+        }
+
+        let sig = subkey_sig
+            .sign_subkey_binding(&mut signer, primary_key.clone().parts_as_public(), &subkey)
+            .unwrap();
+        cert = cert
+            .insert_packets(vec![Packet::SecretSubkey(subkey), sig.into()])
+            .unwrap();
     }
 
     // Insert given X25519 key
     if let Some(x25519_key) = opts.x25519_private_key {
-        println!("Add x25519 key");
-        let decoded = hex::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
-        if decoded.len() != 32 {
-            return Err("Invalid x25519 private key length".to_string());
-        }
-        let subkey: Key<SecretParts, SubordinateRole> =
-            Key4::import_secret_cv25519(&decoded, None, None, creation_time)
+        let x25519_key = hex::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
+        let subkey: Key<SecretParts, _> =
+            Key4::import_secret_cv25519(&x25519_key, None, None, creation_time)
                 .unwrap()
                 .into();
-        cert = add_sub_key(
-            &cert,
-            SignatureBuilder::new(SignatureType::SubkeyBinding)
-                .set_signature_creation_time(creation_time)
-                .unwrap()
-                .set_key_flags(flags.clone())
-                .map_err(|_| "Unable to build signature")?,
-            subkey,
-        )?;
+        let subkey_sig = SignatureBuilder::new(SignatureType::SubkeyBinding)
+            .clone()
+            .set_key_flags(KeyFlags::empty().set_storage_encryption())
+            .unwrap()
+            .sign_subkey_binding(&mut signer, primary_key.clone().parts_as_public(), &subkey)
+            .unwrap();
+        cert = cert
+            .insert_packets(vec![Packet::SecretSubkey(subkey), subkey_sig.into()])
+            .unwrap();
     }
 
     let armored = export_secret_keys(&cert);
