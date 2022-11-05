@@ -22,6 +22,6 @@ mkdir -p $GNUPGHOME
 chmod 700 $GNUPGHOME
 gpg --import test_gpg_create.key
 
-echo "swordfish" | gpg --quiet --trust-model always --recipient John --armor --sign --encrypt | gpg --quiet --decrypt
+echo "swordfish" | gpg --quiet --trust-model always --recipient John --armor --sign --encrypt | gpg --quiet --trust-model always --decrypt
 echo "✅ Swordfish signed, encrypted and decrypted"
 
