@@ -1081,6 +1081,7 @@ dependencies = [
 name = "sshgpg"
 version = "0.1.0"
 dependencies = [
+ "base64 0.13.1",
  "clap",
  "derive_more",
  "dryoc",

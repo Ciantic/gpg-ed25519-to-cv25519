@@ -4,9 +4,9 @@ mod commands;
 mod utils;
 use clap::{arg, command, Parser, Subcommand};
 use commands::{
-    ed25519::Ed25519Opts,
+    ed25519::{self, Ed25519Opts},
     gpg::{self, GpgCmds, GpgOpts},
-    ssh::SshOpts,
+    ssh::{self, SshOpts},
 };
 use std::path::PathBuf;
 
@@ -76,11 +76,8 @@ fn main() -> Result<(), String> {
             crate::commands::ssh_to_gpg::ssh_to_gpg(opts.ssh_file, opts.gpg_file);
             Ok(())
         }
-        SubCommand::Ssh(opts) => Ok(()),
+        SubCommand::Ssh(opts) => ssh::ssh(opts),
         SubCommand::Gpg(opts) => gpg::gpg(opts),
-        SubCommand::Ed25519(opts) => {
-            crate::commands::ed25519::ed25519(opts);
-            Ok(())
-        }
+        SubCommand::Ed25519(opts) => ed25519::ed25519(opts),
     }
 }
