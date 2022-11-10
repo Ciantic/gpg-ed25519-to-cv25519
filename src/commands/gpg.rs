@@ -46,7 +46,11 @@ pub struct ModifyOpts {
     #[arg(value_name = "GPG_PRIVATE_KEY_FILE", help = "GPG private key filename")]
     pub gpg_file: PathBuf,
 
-    #[arg(short, long, help = "Add ed25519 private key (32 bytes in hex format)")]
+    #[arg(
+        short,
+        long,
+        help = "Add ed25519 private key (32 bytes in base64 format)"
+    )]
     pub ed25519_private_key: Option<String>,
 
     #[arg(short, long, help = "Capabilities of a new key (CSEA)")]
@@ -58,7 +62,7 @@ pub struct ModifyOpts {
     #[arg(
         short,
         long,
-        help = "Add x25519 encryption key (32 bytes in hex format)"
+        help = "Add x25519 encryption key (32 bytes in base64 format)"
     )]
     pub x25519_private_key: Option<String>,
 
@@ -77,7 +81,11 @@ pub struct CreateOpts {
     #[arg(short, long, help = "User name and email of the new GPG key")]
     pub user_name: Option<String>,
 
-    #[arg(short, long, help = "Add ed25519 private key (32 bytes in hex format)")]
+    #[arg(
+        short,
+        long,
+        help = "Add ed25519 private key (32 bytes in base64 format)"
+    )]
     pub ed25519_private_key: Option<String>,
 
     #[arg(
@@ -90,7 +98,7 @@ pub struct CreateOpts {
     #[arg(
         short,
         long,
-        help = "Add x25519 encryption key (32 bytes in hex format)"
+        help = "Add x25519 encryption key (32 bytes in base64 format)"
     )]
     pub x25519_private_key: Option<String>,
 
@@ -106,14 +114,14 @@ pub struct InspectOpts {
     #[arg(
         short = 's',
         long,
-        help = "Get ed25519/x25519 private key as hex with given capabilities (CSEA)"
+        help = "Get ed25519/x25519 private key as base64 with given capabilities (CSEA)"
     )]
     pub private_key_capabilities: Option<String>,
 
     #[arg(
         short = 'p',
         long,
-        help = "Get ed25519/x25519 public key as hex with given capabilities (CSEA)"
+        help = "Get ed25519/x25519 public key as base64 with given capabilities (CSEA)"
     )]
     pub public_key_capabilities: Option<String>,
 }
@@ -150,11 +158,11 @@ fn inspect(opts: InspectOpts) -> Result<(), String> {
                     openpgp::packet::prelude::SecretKeyMaterial::Unencrypted(ref f) => {
                         f.map(|mpis| match mpis {
                             openpgp::crypto::mpi::SecretKeyMaterial::ECDH { scalar } => {
-                                println!("{}", hex::encode(scalar.value()));
+                                println!("{}", base64::encode(scalar.value()));
                                 Ok(())
                             }
                             openpgp::crypto::mpi::SecretKeyMaterial::EdDSA { scalar } => {
-                                println!("{}", hex::encode(scalar.value()));
+                                println!("{}", base64::encode(scalar.value()));
                                 Ok(())
                             }
                             k => Err(format!("Unsupported private key type {:?}, only ed25519 and cv25519 can be extracted", k).to_string()),
@@ -185,7 +193,7 @@ fn inspect(opts: InspectOpts) -> Result<(), String> {
                 .serialize_into(buf.as_mut_slice())
                 .map_err(|_| "Failed to serialize key")?;
             buf.resize(size, 0);
-            println!("{}", hex::encode(buf));
+            println!("{}", base64::encode(buf));
         }
     }
 
@@ -204,7 +212,7 @@ fn create(opts: CreateOpts) -> Result<(), String> {
     }
 
     let creation_time = opts.creation_time.unwrap_or_else(SystemTime::now);
-    let ed25519_key = hex::decode(opts.ed25519_private_key.unwrap())
+    let ed25519_key = base64::decode(opts.ed25519_private_key.unwrap())
         .map_err(|_| "Unable to decode private key")?;
 
     let primary_key: Key<SecretParts, _> = Key4::import_secret_ed25519(&ed25519_key, creation_time)
@@ -252,7 +260,7 @@ fn create(opts: CreateOpts) -> Result<(), String> {
     .unwrap();
 
     if let Some(x25519_key) = opts.x25519_private_key {
-        let x25519_key = hex::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
+        let x25519_key = base64::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
         let subkey: Key<SecretParts, _> =
             Key4::import_secret_cv25519(&x25519_key, None, None, creation_time)
                 .unwrap()
@@ -303,7 +311,7 @@ fn modify(opts: ModifyOpts) -> Result<(), String> {
         }
 
         println!("Add ed25519 key {:?}", flags);
-        let decoded = hex::decode(ed25519_key).map_err(|_| "Unable to decode private key")?;
+        let decoded = base64::decode(ed25519_key).map_err(|_| "Unable to decode private key")?;
         if decoded.len() != 32 {
             return Err("Invalid ed25519 private key length".to_string());
         }
@@ -340,7 +348,7 @@ fn modify(opts: ModifyOpts) -> Result<(), String> {
 
     // Insert given X25519 key
     if let Some(x25519_key) = opts.x25519_private_key {
-        let x25519_key = hex::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
+        let x25519_key = base64::decode(x25519_key).map_err(|_| "Unable to decode private key")?;
         let subkey: Key<SecretParts, _> =
             Key4::import_secret_cv25519(&x25519_key, None, None, creation_time)
                 .unwrap()

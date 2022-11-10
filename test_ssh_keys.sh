@@ -52,8 +52,7 @@ if [ "$TAG" != "$MY_TAG" ]; then
     exit 1
 fi
 
-echo $X25519
-
+echo "$X25519"
 exit 0
 
 
@@ -61,7 +60,6 @@ exit 0
 
 # Get ssh-ed25519 public key
 STANZA=$(echo $DEC | cut -b 26- | cut -d ' ' -f 1)
-
 TAG=$(echo $DEC | cut -b 26- | cut -d ' ' -f 2)
 
 echo "$TAG"

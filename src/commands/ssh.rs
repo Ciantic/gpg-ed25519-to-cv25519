@@ -11,16 +11,20 @@ pub struct SshOpts {
     )]
     pub ssh_file: PathBuf,
 
-    #[arg(short = 's', long, help = "Extract raw private key as hex")]
+    #[arg(short = 's', long, help = "Extract raw private key as base64")]
     pub get_private_key: bool,
 
-    #[arg(short = 'r', long, help = "Extract raw public key as hex")]
+    #[arg(short = 'r', long, help = "Extract raw public key as base64")]
     pub get_public_key: bool,
 
-    #[arg(short = 'p', long, help = "Extract SSH public key as hex")]
+    #[arg(short = 'p', long, help = "Extract SSH public key as base64")]
     pub get_ssh_public_key: bool,
 
-    #[arg(short = 'x', long, help = "Extract raw private and public key as hex.")]
+    #[arg(
+        short = 'x',
+        long,
+        help = "Extract raw private and public key as base64."
+    )]
     pub get_all: bool,
 }
 
@@ -31,10 +35,10 @@ pub fn ssh(opts: SshOpts) -> Result<(), String> {
         // SSH private key part contains private key 32 bytes, and copy of public key 32 bytes
         Some(PrivateKey::Ed25519(raw_skpk)) => {
             if opts.get_public_key {
-                println!("{}", hex::encode(&raw_skpk[32..]));
+                println!("{}", base64::encode(&raw_skpk[32..]));
             }
             if opts.get_private_key {
-                println!("{}", hex::encode(&raw_skpk[..32]));
+                println!("{}", base64::encode(&raw_skpk[..32]));
             }
             if opts.get_ssh_public_key {
                 let mut ssh_pk_header = vec![
