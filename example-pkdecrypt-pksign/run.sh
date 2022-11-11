@@ -17,12 +17,11 @@ GPG_TTY=$(tty)
 export GNUPGHOME
 export GPG_TTY
 
-rm -r $GNUPGHOME || true
-mkdir -p $GNUPGHOME
-chmod 700 $GNUPGHOME
-
-
-gpg --quiet --batch --passphrase '' --default-new-key-algo "ed25519/cert,auth,sign+cv25519/encr" --quick-generate-key "John Doe <john@example.com>"
+if [ ! -d "$GNUPGHOME" ]; then
+    mkdir -p $GNUPGHOME
+    chmod 700 $GNUPGHOME
+    gpg --quiet --batch --passphrase '' --default-new-key-algo "ed25519/cert,auth,sign+cv25519/encr" --quick-generate-key "John Doe <john@example.com>"
+fi
 
 # It's important to close gpg agents after `gpg` command, otherwise some of the
 # instances might cause race conditions for the tests below
@@ -52,7 +51,7 @@ log-file gpg-agent.log
 # Decrypting example
 echo "
 /hex
-/let MYCIPHER (7:enc-val (4:ecdh (1:e:12341234)(1:s:12341234)))
+/let MYCIPHER (7:enc-val (4:ecdh (1:e:12341234)))
 /definq CIPHERTEXT MYCIPHER
 # Or using file
 # /definqfile CIPHERTEXT ciphertext.txt
