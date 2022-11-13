@@ -10,7 +10,7 @@ pub struct X25519Cmds {
 
 #[derive(Parser, Debug)]
 pub enum X25519Choices {
-    /// Generate a x25519 keypair (ephemeral public key, shared secret)
+    /// Calculate a shared secret from a public key and ephemeral secret
     Encrypt(EncryptOpts),
 
     /// Calculate shared secret from private key and ephemeral public key
@@ -21,13 +21,13 @@ pub enum X25519Choices {
 pub struct EncryptOpts {
     #[arg(
         value_name = "X25519_PUBLIC_KEY",
-        help = "32 byte X25519_PUBLIC_KEY public key in base64 format"
+        help = "32 byte public key in base64 format"
     )]
     pub x25519_pub_key: String,
 
     #[arg(
-        value_name = "SECRET",
-        help = "32 byte Random secret / random private key in base64 format"
+        value_name = "EPHEMERAL_SECRET",
+        help = "32 byte random secret or private key in base64 format"
     )]
     pub secret: String,
 }
@@ -36,7 +36,7 @@ pub struct EncryptOpts {
 pub struct DecryptOpts {
     #[arg(
         value_name = "X25519_PRIVATE_KEY",
-        help = "32 byte X25519_PRIVATE_KEY public key in base64 format"
+        help = "32 byte receiver's private key in base64 format"
     )]
     pub x25519_private_key: String,
 
@@ -153,3 +153,6 @@ mod tests {
         assert_eq!(shared_ecc_key, SHARED_SECRET);
     }
 }
+
+// 32 bytes
+// 0102030405060708091011121314151617181920212223242526272829303132
