@@ -27,10 +27,10 @@ struct Opts {
 
 #[derive(Subcommand, Debug)]
 enum SubCommand {
-    /// Ed25519 key manipulation
+    /// X25519 ECDH encryption, decryption
     X25519(X25519Cmds),
 
-    /// Ed25519 key manipulation
+    /// Ed25519 EdDSA key manipulation
     Ed25519(Ed25519Opts),
 
     /// Convert SSH private key to GPG private key

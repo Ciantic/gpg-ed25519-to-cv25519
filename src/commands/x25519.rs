@@ -15,6 +15,18 @@ pub enum X25519Choices {
 
     /// Calculate shared secret from private key and ephemeral public key
     Decrypt(DecryptOpts),
+
+    /// Clamp a scalar / private key
+    Clamp(ClampScalarOpts),
+}
+
+#[derive(Parser, Debug)]
+pub struct ClampScalarOpts {
+    #[arg(
+        value_name = "X25519_SCALAR",
+        help = "32 byte private key candidate or scalar in base64 format"
+    )]
+    pub x25519_scalar: String,
 }
 
 #[derive(Parser, Debug)]
@@ -60,6 +72,16 @@ pub fn x25519(c: X25519Cmds) -> Result<(), String> {
         X25519Choices::Decrypt(opts) => x25519_decrypt(opts).map(|shared_ecc_key| {
             println!("Shared ECC key: {}", shared_ecc_key);
         }),
+        X25519Choices::Clamp(opts) => {
+            let x25519_clamped = {
+                let key = base64::decode(&opts.x25519_scalar).map_err(|e| e.to_string())?;
+                let mut buf: [u8; 32] = [0; 32];
+                buf.copy_from_slice(key.as_slice());
+                clamp_scalar(buf)
+            };
+            println!("{}", base64::encode(x25519_clamped.to_bytes()));
+            Ok(())
+        }
     }
 }
 
@@ -76,10 +98,6 @@ pub fn x25519_encrypt(opts: EncryptOpts) -> Result<(String, String), String> {
         buf.copy_from_slice(key.as_slice());
         clamp_scalar(buf)
     };
-    // from from_bytes_mod_order
-    // Cipher public key: 0jxltmrWdXoDaT/sUrY8PrsthuZAZYlacomV8U+QfxQ=
-    // Shared ECC key: 6NAf2IzBgSAF/s3iGAB158vsGNIK3J70Cli4Q/73JUs=
-    //
 
     let cipher_pub_key = secret * X25519_BASEPOINT;
     let shared_ecc_key = x25519_pub_key * secret;
