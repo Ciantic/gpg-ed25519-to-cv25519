@@ -7,6 +7,7 @@ use commands::{
     ed25519::{self, Ed25519Opts},
     gpg::{self, GpgCmds, GpgOpts},
     ssh::{self, SshOpts},
+    x25519::{x25519, X25519Cmds},
 };
 use std::path::PathBuf;
 
@@ -26,8 +27,8 @@ struct Opts {
 
 #[derive(Subcommand, Debug)]
 enum SubCommand {
-    /// Converts existing ed25519 subkey to cv25519 encryption subkey
-    Ed25519ToCv25519(Ed25519ToCv25519),
+    /// Ed25519 key manipulation
+    X25519(X25519Cmds),
 
     /// Ed25519 key manipulation
     Ed25519(Ed25519Opts),
@@ -65,13 +66,6 @@ fn main() -> Result<(), String> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
-        SubCommand::Ed25519ToCv25519(opts) => {
-            crate::commands::ed25519_to_cv25519::convert_gpg_ed25519_to_cv25519(
-                opts.gpg_input_file,
-                opts.gpg_output_file,
-            );
-            Ok(())
-        }
         SubCommand::SshToGpg(opts) => {
             crate::commands::ssh_to_gpg::ssh_to_gpg(opts.ssh_file, opts.gpg_file);
             Ok(())
@@ -79,5 +73,6 @@ fn main() -> Result<(), String> {
         SubCommand::Ssh(opts) => ssh::ssh(opts),
         SubCommand::Gpg(opts) => gpg::gpg(opts),
         SubCommand::Ed25519(opts) => ed25519::ed25519(opts),
+        SubCommand::X25519(opts) => x25519(opts),
     }
 }

@@ -17,10 +17,17 @@ GPG_TTY=$(tty)
 export GNUPGHOME
 export GPG_TTY
 
+# if first argument is "delete"
+if [ "$1" = "delete" ]; then
+    echo "🗑 Deleting $GNUPGHOME..."
+    rm -r $GNUPGHOME
+fi
+
 if [ ! -d "$GNUPGHOME" ]; then
     mkdir -p $GNUPGHOME
     chmod 700 $GNUPGHOME
     gpg --quiet --batch --passphrase '' --default-new-key-algo "ed25519/cert,auth,sign+cv25519/encr" --quick-generate-key "John Doe <john@example.com>"
+    gpg --export --armor > gpg.key
 fi
 
 # It's important to close gpg agents after `gpg` command, otherwise some of the
@@ -73,3 +80,10 @@ gpg-connect-agent --run $GNUPGHOME/example_signing.txt --homedir $GNUPGHOME --ve
 
 echo "✅ PKDECRYPT, If you see above hex (5:value33:...)"
 echo "✅ PKSIGN, If you see above hex (7:sig-val(5:eddsa(1:r32:...)(1:s32:...)))"
+
+if [ "$1" = "bash" ]; then
+    echo "🐚 Entering bash..."
+
+    # Start bash with short prompt
+    bash --rcfile <(echo "PS1='\033[0;32mexample\$\033[0m '")
+fi    

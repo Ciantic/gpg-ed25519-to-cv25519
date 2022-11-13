@@ -14,3 +14,4 @@ ssh-keys = "0.1"
 clap = { version ="4.0", features = ["derive"] }
 derive_more = "0.99"
 base64 = "0.13"
+curve25519-dalek = "3.2"
