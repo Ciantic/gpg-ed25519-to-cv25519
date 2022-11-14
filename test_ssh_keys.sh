@@ -12,7 +12,7 @@ ED25519PUBLICKEY=$(cargo run ssh test_ssh_keys.key --get-ssh-public-key)
 # echo "$ED25519PUBLICKEY_B64"
 # echo "$ED25519PUBLICKEY"
 # exit 0
-X25519KEY=$(cargo run ed25519 $ED25519KEY --convert-to-x25519-private-key)
+X25519KEY=$(cargo run ed25519 private-key $ED25519KEY --convert-to-x25519-private-key)
 cargo run gpg create test_ssh_keys_pgp.key -u "John O Cron <john@example.com>" \
     -e "$ED25519KEY" \
     -x "$X25519KEY" \

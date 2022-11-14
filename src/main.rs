@@ -4,8 +4,8 @@ mod commands;
 mod utils;
 use clap::{arg, command, Parser, Subcommand};
 use commands::{
-    ed25519::{self, Ed25519Opts},
-    gpg::{self, GpgCmds, GpgOpts},
+    ed25519::{self, Ed25519Cmds},
+    gpg::{self, GpgCmds},
     ssh::{self, SshOpts},
     x25519::{x25519, X25519Cmds},
 };
@@ -31,10 +31,7 @@ enum SubCommand {
     X25519(X25519Cmds),
 
     /// Ed25519 EdDSA key manipulation
-    Ed25519(Ed25519Opts),
-
-    /// Convert SSH private key to GPG private key
-    SshToGpg(SshToGpg),
+    Ed25519(Ed25519Cmds),
 
     /// Inspect SSH private keys
     Ssh(SshOpts),
@@ -66,10 +63,6 @@ fn main() -> Result<(), String> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
-        SubCommand::SshToGpg(opts) => {
-            crate::commands::ssh_to_gpg::ssh_to_gpg(opts.ssh_file, opts.gpg_file);
-            Ok(())
-        }
         SubCommand::Ssh(opts) => ssh::ssh(opts),
         SubCommand::Gpg(opts) => gpg::gpg(opts),
         SubCommand::Ed25519(opts) => ed25519::ed25519(opts),

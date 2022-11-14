@@ -2,6 +2,8 @@ use clap::{arg, Parser};
 use curve25519_dalek::{constants::X25519_BASEPOINT, montgomery::MontgomeryPoint, scalar::Scalar};
 use std::path::PathBuf;
 
+use crate::utils::base64_to_bytes;
+
 #[derive(Parser, Debug)]
 pub struct X25519Cmds {
     #[command(subcommand)]
@@ -73,12 +75,7 @@ pub fn x25519(c: X25519Cmds) -> Result<(), String> {
             println!("Shared ECC key: {}", shared_ecc_key);
         }),
         X25519Choices::Clamp(opts) => {
-            let x25519_clamped = {
-                let key = base64::decode(&opts.x25519_scalar).map_err(|e| e.to_string())?;
-                let mut buf: [u8; 32] = [0; 32];
-                buf.copy_from_slice(key.as_slice());
-                clamp_scalar(buf)
-            };
+            let x25519_clamped = clamp_scalar(base64_to_bytes(&opts.x25519_scalar)?);
             println!("{}", base64::encode(x25519_clamped.to_bytes()));
             Ok(())
         }
@@ -86,18 +83,8 @@ pub fn x25519(c: X25519Cmds) -> Result<(), String> {
 }
 
 pub fn x25519_encrypt(opts: EncryptOpts) -> Result<(String, String), String> {
-    let x25519_pub_key = {
-        let key = base64::decode(&opts.x25519_pub_key).map_err(|e| e.to_string())?;
-        let mut buf: [u8; 32] = [0; 32];
-        buf.copy_from_slice(key.as_slice());
-        MontgomeryPoint(buf)
-    };
-    let secret = {
-        let key = base64::decode(&opts.secret).map_err(|e| e.to_string())?;
-        let mut buf: [u8; 32] = [0; 32];
-        buf.copy_from_slice(key.as_slice());
-        clamp_scalar(buf)
-    };
+    let x25519_pub_key = MontgomeryPoint(base64_to_bytes(&opts.x25519_pub_key)?);
+    let secret = clamp_scalar(base64_to_bytes(&opts.secret)?);
 
     let cipher_pub_key = secret * X25519_BASEPOINT;
     let shared_ecc_key = x25519_pub_key * secret;
@@ -109,18 +96,8 @@ pub fn x25519_encrypt(opts: EncryptOpts) -> Result<(String, String), String> {
 }
 
 pub fn x25519_decrypt(opts: DecryptOpts) -> Result<String, String> {
-    let x25519_private_key = {
-        let key = base64::decode(&opts.x25519_private_key).map_err(|e| e.to_string())?;
-        let mut buf: [u8; 32] = [0; 32];
-        buf.copy_from_slice(key.as_slice());
-        clamp_scalar(buf)
-    };
-    let ephemeral_public_key = {
-        let key = base64::decode(&opts.ephemeral_public_key).map_err(|e| e.to_string())?;
-        let mut buf: [u8; 32] = [0; 32];
-        buf.copy_from_slice(key.as_slice());
-        MontgomeryPoint(buf)
-    };
+    let x25519_private_key = clamp_scalar(base64_to_bytes(&opts.x25519_private_key)?);
+    let ephemeral_public_key = MontgomeryPoint(base64_to_bytes(&opts.ephemeral_public_key)?);
 
     let shared_ecc_key = ephemeral_public_key * x25519_private_key;
 

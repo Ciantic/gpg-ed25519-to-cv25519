@@ -11,7 +11,7 @@ gpg --export-secret-keys --armor > test_gpg_modify.key
 
 
 ED25519KEY=$(echo "0102030405060708091011121314151617181920212223242526272829303132" | xxd -r -p | base64)
-X25519KEY=$(cargo run ed25519 $ED25519KEY --convert-to-x25519-private-key)
+X25519KEY=$(cargo run ed25519 private-key $ED25519KEY --convert-to-x25519-private-key)
 
 # Export 
 cargo run gpg modify test_gpg_modify.key \
