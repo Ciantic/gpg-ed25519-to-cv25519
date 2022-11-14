@@ -22,6 +22,7 @@ pub enum Ed25519Choices {
     PrivateKey(PrivateKeyOpts),
     /// Operations on Ed25519 public key
     PublicKey(PublicKeyOpts),
+    // TODO: Sign and verify
 }
 #[derive(Parser, Debug)]
 pub struct PrivateKeyOpts {
@@ -130,7 +131,7 @@ mod tests {
     const X25519_PRIVATE_KEY: &str = "MHyDhk8oM8tCei7xwAoBPP3/J2jZgMCjpSDwBpBN6U8=";
     const X25519_PUBLIC_KEY: &str = "2F4H7CKwrYgVN8L0TWYtGhQ8+DDFespDBdhcepD2ti4=";
 
-    /// Test that ed25519 private key -> public key works
+    /// Test that ed25519 private key -> public key
     #[test]
     fn test_ed25519_sk_to_pk() {
         let ed25519_private_key = base64_to_bytes(&ED25519_PRIVATE_KEY).unwrap();
@@ -138,7 +139,7 @@ mod tests {
         assert_eq!(&base64::encode(pub_key), &ED25519_PUBLIC_KEY)
     }
 
-    /// Test ed25519 private key to X25519 private key conversion
+    /// Test ed25519 private key -> X25519 private key conversion
     #[test]
     fn test_ed25519_sk_to_x25519_sk() {
         let ed25519_private_key = base64_to_bytes(&ED25519_PRIVATE_KEY).unwrap();
@@ -148,7 +149,7 @@ mod tests {
         assert_eq!(base64::encode(x25519_private_key), X25519_PRIVATE_KEY)
     }
 
-    /// Test ed25519 public key to X25519 public key conversion
+    /// Test ed25519 public key -> X25519 public key conversion
     #[test]
     fn test_ed25519_pk_to_x25519_pk() {
         let ed25519_public_key = base64_to_bytes(&ED25519_PUBLIC_KEY).unwrap();
