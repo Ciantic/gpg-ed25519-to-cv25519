@@ -15,11 +15,26 @@ pub enum X25519Choices {
     /// Calculate a shared secret from a public key and ephemeral secret
     Encrypt(EncryptOpts),
 
+    /// Calculate a shared secret from a public key and ephemeral secret
+    PrivateKey(PrivateKeyOpts),
+
     /// Calculate shared secret from private key and ephemeral public key
     Decrypt(DecryptOpts),
 
     /// Clamp a scalar / private key
     Clamp(ClampScalarOpts),
+}
+
+#[derive(Parser, Debug)]
+pub struct PrivateKeyOpts {
+    #[arg(
+        value_name = "X25519_PRIVATE_KEY",
+        help = "32 byte private key in base64 format"
+    )]
+    pub x25519_private_key: String,
+
+    #[arg(long, help = "Return ED25519 public key part in base64 format")]
+    pub get_public_key: bool,
 }
 
 #[derive(Parser, Debug)]
@@ -79,7 +94,21 @@ pub fn x25519(c: X25519Cmds) -> Result<(), String> {
             println!("{}", base64::encode(x25519_clamped.to_bytes()));
             Ok(())
         }
+        X25519Choices::PrivateKey(opts) => {
+            if opts.get_public_key {
+                let pub_key = x25519_private_key_to_public_key(&opts.x25519_private_key)?;
+                println!("{}", pub_key);
+            }
+            Ok(())
+        }
     }
+}
+
+pub fn x25519_private_key_to_public_key(x25519_private_key: &str) -> Result<String, String> {
+    let bytes = base64_to_bytes(&x25519_private_key)?;
+    let secret = clamp_scalar(bytes);
+    let x25519_public_key = secret * X25519_BASEPOINT;
+    Ok(base64::encode(x25519_public_key.to_bytes()))
 }
 
 pub fn x25519_encrypt(opts: EncryptOpts) -> Result<(String, String), String> {
@@ -124,6 +153,21 @@ mod tests {
     const ALICE_PRIVATE_KEY: &str = "dwdtCnMYpX08FsFyUbJmRd9ML4frwJkqsXf7pR25LCo=";
 
     const SHARED_SECRET: &str = "Sl2dW6TOLeFyjjv0gDUPJeB+IclH0Z4zdvCbPB4WF0I=";
+
+    #[test]
+    fn sanity_test_for_ed25519_module() {
+        // This tests same values as in ed25519.rs test conversion
+        const X25519_PRIVATE_KEY: &str = "MHyDhk8oM8tCei7xwAoBPP3/J2jZgMCjpSDwBpBN6U8=";
+        const X25519_PUBLIC_KEY: &str = "2F4H7CKwrYgVN8L0TWYtGhQ8+DDFespDBdhcepD2ti4=";
+        let x25519_public_key = x25519_private_key_to_public_key(X25519_PRIVATE_KEY).unwrap();
+        assert_eq!(x25519_public_key, X25519_PUBLIC_KEY);
+    }
+
+    #[test]
+    fn test_x25519_get_public_key() {
+        let x25519_public_key = x25519_private_key_to_public_key(BOB_PRIVATE_KEY).unwrap();
+        assert_eq!(x25519_public_key, BOB_PUBLIC_KEY);
+    }
 
     /// Alice sends Bob a message, thus she uses Bob's public key and her private key
     #[test]

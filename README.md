@@ -22,3 +22,14 @@ I consider my code MIT licensed, but as I consulted sequoia-pgp code, parts mayb
 ## TODO
 
 -   Error handling to Rust enums
+
+## Notes & bookmaks
+
+-   [Nice diagram of ed25519](https://blog.mozilla.org/warner/2011/11/29/ed25519-keys/)
+-   ED25519 private key is not scalar, but rather a seed
+    -   You can however obtain the scalar value by hashing (see the diagram above)
+-   X25519 private key is scalar
+-   `Private scalar * G` (montgomery basepoint of ed25519) is the public key for both X25519 and ED25519
+-   Public key for both algorithms is Montgomery point not a scalar
+-   [ECDH X25519 test vectors](https://www.rfc-editor.org/rfc/rfc7748#section-6.1)
+-   [EdDSA Ed25519 test vectors](https://www.rfc-editor.org/rfc/rfc8032#page-24)
