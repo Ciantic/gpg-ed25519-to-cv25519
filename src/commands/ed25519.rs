@@ -144,8 +144,6 @@ mod tests {
     fn test_ed25519_sk_to_x25519_sk() {
         let ed25519_private_key = base64_to_bytes(&ED25519_PRIVATE_KEY).unwrap();
         let x25519_private_key = ed25519_sk_to_x25519_sk(&ed25519_private_key);
-        println!("{}", base64::encode(x25519_private_key));
-
         assert_eq!(base64::encode(x25519_private_key), X25519_PRIVATE_KEY)
     }
 
