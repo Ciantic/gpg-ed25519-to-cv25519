@@ -1,4 +1,4 @@
-# SSH GPG tool
+# Eddie - ED25519/X25519 tool for SSH and GPG files
 
 My command line utility for ED25519, X25519 fiddling. Supports creating GPG keys with custom private keys, extracting raw private keys from SSH, etc.
 
