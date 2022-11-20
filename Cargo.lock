@@ -361,6 +361,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "eddie"
+version = "0.1.0"
+dependencies = [
+ "base64 0.13.1",
+ "clap",
+ "curve25519-dalek",
+ "derive_more",
+ "ed25519-dalek",
+ "sequoia-openpgp",
+ "ssh-keys",
+]
+
+[[package]]
 name = "either"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1023,19 +1036,6 @@ dependencies = [
  "base64 0.9.3",
  "byteorder",
  "quick-error",
-]
-
-[[package]]
-name = "sshgpg"
-version = "0.1.0"
-dependencies = [
- "base64 0.13.1",
- "clap",
- "curve25519-dalek",
- "derive_more",
- "ed25519-dalek",
- "sequoia-openpgp",
- "ssh-keys",
 ]
 
 [[package]]

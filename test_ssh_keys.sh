@@ -29,7 +29,6 @@ echo "$ED25519KEY"
 echo "$ED25519PUBLICKEY"
 ENC=$(echo "swordfish" | age --encrypt --identity test_ssh_keys.key --output - -)
 
-
 HEADER=$(echo $ENC | cut -d' ' -f1)
 STANZA=$(echo $ENC | cut -d' ' -f3)
 TAG=$(echo $ENC | cut -d' ' -f4)
@@ -52,25 +51,18 @@ if [ "$TAG" != "$MY_TAG" ]; then
     exit 1
 fi
 
-echo "$X25519"
-exit 0
 
+echo "X25519"
+echo $X25519
 
-# Bytes 23-25 "->"
-
-# Get ssh-ed25519 public key
-STANZA=$(echo $DEC | cut -b 26- | cut -d ' ' -f 1)
-TAG=$(echo $DEC | cut -b 26- | cut -d ' ' -f 2)
-
-echo "$TAG"
 
 # hex to binary
 ED25519PUBLICKEY_BIN=$(echo $ED25519PUBLICKEY | xxd -r -p)
 
-echo $ED25519PUBLICKEY_BIN
+# echo $ED25519PUBLICKEY_BIN
 
 # Sha256
-echo -n $ED25519PUBLICKEY_BIN | openssl dgst -sha256 -binary 
+# echo -n $ED25519PUBLICKEY_BIN | openssl dgst -sha256 -binary 
 
 # convert to hex
 # TAG=$(echo $TAG | xxd -p)
